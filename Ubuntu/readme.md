@@ -25,3 +25,11 @@ python3 imu_node.py E0:E1:DD:8E:06:13 127.0.0.1
 ### 依赖安装
 bluez
 libbluetooth-dev
+```
+hciconfig
+bluetoothhctl
+Agent registered
+[CHG] Controller 8C:F8:C5:51:6D:95 Pairable: yes
+[bluetooth]# scan on
+
+```
