@@ -33,3 +33,6 @@ Agent registered
 [bluetooth]# scan on
 
 ```
+注意修改port
+通过``if a``查询host ip
+如果启用Clash则port=7890
