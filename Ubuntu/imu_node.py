@@ -15,6 +15,9 @@ class AnyDevice(gatt.Device):
 
     sock_pc = None
     parse_imu_flage = False
+    imu_buffer = np.memmap("/media/yuxuan/SSD/Big_Rover_Data/imu_april_tag/imu_buffer.npy",dtype='float32',mode='r+',shape=(12,))
+
+
 
     def connect_succeeded(self):
         super().connect_succeeded()
@@ -104,6 +107,7 @@ class AnyDevice(gatt.Device):
         if characteristic.uuid == '0000ae02-0000-1000-8000-00805f9b34fb'.lower():
             if self.parse_imu_flage:
                 self.parse_imu(value)
+                self.imu_buffer.flush()
 
             if self.sock_pc is not None:
                 print("send blue source data")
@@ -139,6 +143,11 @@ class AnyDevice(gatt.Device):
                 imu_dat[0] = float(tmpX)
                 imu_dat[1] = float(tmpY)
                 imu_dat[2] = float(tmpZ)
+                self.imu_buffer[0] = imu_dat[0]
+                self.imu_buffer[1] = imu_dat[1]
+                self.imu_buffer[2] = imu_dat[2]
+
+                
             
             print(" ")
             if ((ctl & 0x0002) != 0):
@@ -165,7 +174,9 @@ class AnyDevice(gatt.Device):
                 imu_dat[6] = float(tmpX)
                 imu_dat[7] = float(tmpY)
                 imu_dat[8] = float(tmpZ)
-            
+                self.imu_buffer[3] = imu_dat[6]
+                self.imu_buffer[4] = imu_dat[7]
+                self.imu_buffer[5] = imu_dat[8]
             print(" ")
             if ((ctl & 0x0008) != 0):
                 tmpX = np.short((np.short(buf[L+1])<<8) | buf[L]) * scaleMag; L += 2
@@ -181,20 +192,20 @@ class AnyDevice(gatt.Device):
             
             print(" ")
             if ((ctl & 0x0010) != 0):
-				tmpX = np.short((np.short(buf[L+1])<<8) | buf[L]) * scaleTemperature; L += 2
-				print("\ttemperature: %.2f"%tmpX) # 温度
+                tmpX = np.short((np.short(buf[L+1])<<8) | buf[L]) * scaleTemperature; L += 2
+                print("\ttemperature: %.2f"%tmpX) # 温度
 
-				tmpU32 = np.uint32(((np.uint32(buf[L+2]) << 16) | (np.uint32(buf[L+1]) << 8) | np.uint32(buf[L])))
-				if ((tmpU32 & 0x800000) == 0x800000): # 若24位数的最高位为1则该数值为负数，需转为32位负数，直接补上ff即可
-					tmpU32 = (tmpU32 | 0xff000000)      
-				tmpY = np.int32(tmpU32) * scaleAirPressure; L += 3
-				print("\tairPressure: %.3f"%tmpY); # 气压
+                tmpU32 = np.uint32(((np.uint32(buf[L+2]) << 16) | (np.uint32(buf[L+1]) << 8) | np.uint32(buf[L])))
+                if ((tmpU32 & 0x800000) == 0x800000): # 若24位数的最高位为1则该数值为负数，需转为32位负数，直接补上ff即可
+                    tmpU32 = (tmpU32 | 0xff000000)      
+                tmpY = np.int32(tmpU32) * scaleAirPressure; L += 3
+                print("\tairPressure: %.3f"%tmpY); # 气压
 
-				tmpU32 = np.uint32((np.uint32(buf[L+2]) << 16) | (np.uint32(buf[L+1]) << 8) | np.uint32(buf[L]))
-				if ((tmpU32 & 0x800000) == 0x800000): # 若24位数的最高位为1则该数值为负数，需转为32位负数，直接补上ff即可
-					tmpU32 = (tmpU32 | 0xff000000)
-				tmpZ = np.int32(tmpU32) * scaleHeight; L += 3 
-				print("\theight: %.3f"%tmpZ); # 高度
+                tmpU32 = np.uint32((np.uint32(buf[L+2]) << 16) | (np.uint32(buf[L+1]) << 8) | np.uint32(buf[L]))
+                if ((tmpU32 & 0x800000) == 0x800000): # 若24位数的最高位为1则该数值为负数，需转为32位负数，直接补上ff即可
+                    tmpU32 = (tmpU32 | 0xff000000)
+                tmpZ = np.int32(tmpU32) * scaleHeight; L += 3 
+                print("\theight: %.3f"%tmpZ); # 高度
 
                 imu_dat[12] = float(tmpX)
                 imu_dat[13] = float(tmpY)
@@ -228,6 +239,9 @@ class AnyDevice(gatt.Device):
                 imu_dat[19] = float(tmpX)
                 imu_dat[20] = float(tmpY)
                 imu_dat[21] = float(tmpZ)
+                self.imu_buffer[6] = imu_dat[19]
+                self.imu_buffer[7] = imu_dat[20]
+                self.imu_buffer[8] = imu_dat[21]
 
             print(" ")
             if ((ctl & 0x0080) != 0):
@@ -241,6 +255,9 @@ class AnyDevice(gatt.Device):
                 imu_dat[22] = float(tmpX)
                 imu_dat[23] = float(tmpY)
                 imu_dat[24] = float(tmpZ)
+                self.imu_buffer[9] = imu_dat[22]
+                self.imu_buffer[10] = imu_dat[23]
+                self.imu_buffer[11] = imu_dat[24]
 
             print(" ")
             if ((ctl & 0x0100) != 0):
@@ -301,36 +318,40 @@ class AnyDevice(gatt.Device):
             print("[error] data head not define")
 
 
-arg_parser = ArgumentParser(description="GATT Connect Demo")
-arg_parser.add_argument('mac_address', help="MAC address of device to connect")
-arg_parser.add_argument('host_ip', help="HOST ip address of device to connect", nargs='?', default=None)
-args = arg_parser.parse_args()
+# arg_parser = ArgumentParser(description="GATT Connect Demo")
+# arg_parser.add_argument('mac_address', help="MAC address of device to connect")
+# arg_parser.add_argument('host_ip', help="HOST ip address of device to connect", nargs='?', default=None)
+# args = arg_parser.parse_args()
 
 
+if __name__=="__main__":
+
+    host_ip = "127.0.0.1"
+    mac_address = "6B:C3:BA:65:E3:86"
+    # host = args.host_ip
+    host = None
+    port = 7890
+    sock = None
+    print("host ip: ",host)
+    if host is not None:
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.connect((host, port))
+        except:
+            print("Could not make a connection to the server")
+            input("Press enter to quit")
+            sys.exit(0)
 
 
-host = args.host_ip
-port = 6666
-sock = None
-print("host ip: ",host)
-if host is not None:
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.connect((host, port))
-    except:
-        print("Could not make a connection to the server")
-        input("Press enter to quit")
-        sys.exit(0)
+    print("Connecting bluetooth ...")
 
+    manager = gatt.DeviceManager(adapter_name='hci0')
+    # device = AnyDevice(manager=manager, mac_address=args.mac_address)
+    device = AnyDevice(manager=manager, mac_address=mac_address)
+    device.sock_pc = sock
+    if host is None:
+        device.parse_imu_flage = True
 
-print("Connecting bluetooth ...")
+    device.connect()
 
-manager = gatt.DeviceManager(adapter_name='hci0')
-device = AnyDevice(manager=manager, mac_address=args.mac_address)
-device.sock_pc = sock
-if host is None:
-    device.parse_imu_flage = True
-
-device.connect()
-
-manager.run()
+    manager.run()
