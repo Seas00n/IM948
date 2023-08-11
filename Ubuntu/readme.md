@@ -27,7 +27,7 @@ bluez
 libbluetooth-dev
 ```
 hciconfig
-bluetoothhctl
+bluetoothctl
 Agent registered
 [CHG] Controller 8C:F8:C5:51:6D:95 Pairable: yes
 [bluetooth]# scan on
